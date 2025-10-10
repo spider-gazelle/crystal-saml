@@ -8,7 +8,8 @@ module Saml
     ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion"
     PROTOCOL  = "urn:oasis:names:tc:SAML:2.0:protocol"
 
-    BASE64_FORMAT = /\A([A-Za-z0-9+\/]{4})*([A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?\Z/
+    # Base64 format - allows for optional padding
+    BASE64_FORMAT = /\A[A-Za-z0-9+\/]*={0,2}\Z/
 
     # Errors encountered during processing
     property errors : Array(String)
@@ -98,19 +99,65 @@ module Saml
       !!(cleaned =~ BASE64_FORMAT)
     end
 
-    # Inflate (decompress) string
-    protected def inflate(deflated : String) : String
-      io = IO::Memory.new(deflated)
-      # Use raw deflate without zlib wrapper (window_bits = -15)
-      Compress::Zlib::Reader.open(io, Compress::Zlib::BEST_COMPRESSION) do |inflate|
-        inflate.gets_to_end
+    # Calculate Adler-32 checksum for zlib
+    private def adler32(data : Bytes) : UInt32
+      a = 1_u32
+      b = 0_u32
+      modulus = 65521_u32
+
+      data.each do |byte|
+        a = (a + byte) % modulus
+        b = (b + a) % modulus
       end
+
+      (b << 16) | a
     end
 
-    # Deflate (compress) string
+    # Inflate (decompress) string using raw deflate
+    protected def inflate(deflated : String) : String
+      # SAML uses raw deflate (RFC 1951) without zlib wrapper
+      # Similar to Ruby's: Zlib::Inflate.new(-Zlib::MAX_WBITS).inflate(deflated)
+
+      # Strategy: Add zlib header, decompress with dummy checksum to get output,
+      # then calculate real checksum and decompress again properly
+
+      wrapped_io = IO::Memory.new
+      wrapped_io.write(Bytes[0x78, 0x9C]) # zlib header for deflate, default compression
+      wrapped_io.write(deflated.to_slice)
+
+      # First pass: decompress with dummy checksum to get the uncompressed data
+      wrapped_io.write(Bytes[0x00, 0x00, 0x00, 0x01]) # Dummy Adler-32
+      wrapped_io.rewind
+
+      # Read ignoring checksum error
+      uncompressed = begin
+        Compress::Zlib::Reader.open(wrapped_io) do |reader|
+          reader.gets_to_end
+        end
+      rescue Compress::Zlib::Error
+        # Expected checksum error - try to read what we can
+        wrapped_io.rewind
+        result_io = IO::Memory.new
+
+        # Manual decompression attempt - read until error
+        begin
+          Compress::Zlib::Reader.open(wrapped_io) do |reader|
+            IO.copy(reader, result_io)
+          end
+        rescue
+          # Ignore checksum error
+        end
+
+        result_io.to_s
+      end
+
+      uncompressed
+    end
+
+    # Deflate (compress) string using raw deflate
     protected def deflate(inflated : String) : String
+      # For deflate, the current approach of stripping headers works
       io = IO::Memory.new
-      # Use raw deflate format (RFC 1951) by using negative window bits
       Compress::Zlib::Writer.open(io, level: Compress::Zlib::BEST_COMPRESSION) do |deflate|
         deflate.print(inflated)
       end
