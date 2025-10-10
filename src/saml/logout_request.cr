@@ -115,7 +115,7 @@ module Saml
       end
 
       # Sign if using POST binding
-      request_xml = builder.to_xml
+      request_xml = builder
       if settings.idp_slo_service_binding == Utils::BINDINGS[:post] &&
          settings.security.logout_requests_signed
         cert = settings.get_sp_cert

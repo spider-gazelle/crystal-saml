@@ -7,7 +7,7 @@ module Saml
     getter document : XML::Node
     getter response_string : String
     getter settings : Settings
-    getter options : Hash(Symbol, String | Bool)?
+    getter options : Hash(Symbol, String | Bool | Int32 | Float64)?
 
     @attributes : Attributes?
     @name_id : String?
@@ -141,7 +141,7 @@ module Saml
     # Get issuers
     def issuers : Array(String)
       response_nodes = @document.xpath_nodes("/p:Response/a:Issuer",
-        {"p" => PROTOCOL, "a" => ASSERTION})
+        {"p" => PROTOCOL, "a" => ASSERTION}).to_a
 
       assertion_nodes = xpath_from_signed_assertion("a:Issuer")
 
@@ -173,22 +173,25 @@ module Saml
     private def validate(collect_errors : Bool) : Bool
       reset_errors!
 
-      validations = [
-        :validate_version,
-        :validate_id,
-        :validate_success_status,
-        :validate_conditions,
-        :validate_audience,
-        :validate_destination,
-        :validate_issuer,
-        :validate_signature,
-      ]
-
       if collect_errors
-        validations.each { |validation| send(validation) }
+        validate_version
+        validate_id
+        validate_success_status
+        validate_conditions
+        validate_audience
+        validate_destination
+        validate_issuer
+        validate_signature
         @errors.empty?
       else
-        validations.all? { |validation| send(validation) }
+        validate_version &&
+          validate_id &&
+          validate_success_status &&
+          validate_conditions &&
+          validate_audience &&
+          validate_destination &&
+          validate_issuer &&
+          validate_signature
       end
     end
 
@@ -314,7 +317,7 @@ module Saml
       assertion = @document.xpath_node("//a:Assertion", {"a" => ASSERTION})
       return [] of XML::Node unless assertion
 
-      assertion.xpath_nodes(path, {"a" => ASSERTION})
+      assertion.xpath_nodes(path, {"a" => ASSERTION}).to_a
     end
 
     private def parse_time(node : XML::Node?, attribute : String) : Time?

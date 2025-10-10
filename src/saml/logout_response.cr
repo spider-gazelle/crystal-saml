@@ -66,7 +66,7 @@ module Saml
         end
       end
 
-      response_xml = builder.to_xml
+      response_xml = builder
 
       # Sign if required
       if settings.security.logout_responses_signed
@@ -161,14 +161,10 @@ module Saml
     private def validate : Bool
       reset_errors!
 
-      validations = [
-        :validate_version,
-        :validate_id,
-        :validate_success_status,
-        :validate_issuer,
-      ]
-
-      validations.all? { |validation| send(validation) }
+      validate_version &&
+        validate_id &&
+        validate_success_status &&
+        validate_issuer
     end
 
     private def validate_version : Bool
