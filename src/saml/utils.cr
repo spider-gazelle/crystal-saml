@@ -28,16 +28,13 @@ module Saml
 
     # Check if a certificate is expired
     def cert_expired?(cert : OpenSSL::X509::Certificate) : Bool
-      # TODO: Crystal's OpenSSL bindings don't expose not_after yet
-      # For now, assume certificates are not expired
-      false
+      Time.utc >= cert.not_after
     end
 
     # Check if a certificate is active (started and not expired)
     def cert_active?(cert : OpenSSL::X509::Certificate) : Bool
-      # TODO: Crystal's OpenSSL bindings don't expose not_before/not_after yet
-      # For now, assume certificates are active
-      true
+      now = Time.utc
+      now >= cert.not_before && now < cert.not_after
     end
 
     # Parse ISO 8601 duration and apply to timestamp
