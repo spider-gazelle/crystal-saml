@@ -5,6 +5,7 @@ dependencies:
   openssl_ext:
     github: spider-gazelle/openssl_ext
 
+development_dependencies:
   timecop:
     github: crystal-community/timecop.cr
 
