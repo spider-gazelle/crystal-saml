@@ -1,4 +1,4 @@
-module Saml
+module SAML
   # SAML2 Attributes from the AttributeStatement
   class Attributes
     include Enumerable({String, Array(String?)})

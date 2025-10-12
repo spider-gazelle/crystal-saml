@@ -7,7 +7,7 @@ def read_cert(filename)
 end
 
 # Helper class to access protected inflate method
-class TestAuthRequest < Saml::AuthRequest
+class TestAuthRequest < SAML::AuthRequest
   def test_inflate(deflated : String) : String
     inflate(deflated)
   end
@@ -16,7 +16,7 @@ end
 describe "SAML AuthnRequest" do
   describe "Authrequest" do
     it "creates the deflated SAMLRequest URL parameter" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
 
       request = TestAuthRequest.new
@@ -31,7 +31,7 @@ describe "SAML AuthnRequest" do
     end
 
     it "creates the deflated SAMLRequest URL parameter including the Destination" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
 
       request = TestAuthRequest.new
@@ -44,11 +44,11 @@ describe "SAML AuthnRequest" do
     end
 
     it "creates the SAMLRequest URL parameter without deflating" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.compress_request = false
 
-      auth_url = Saml::AuthRequest.new.create(settings)
+      auth_url = SAML::AuthRequest.new.create(settings)
       auth_url.should match(/^http:\/\/example\.com\?SAMLRequest=/)
 
       payload = URI.decode_www_form(auth_url.split("=").last)
@@ -58,7 +58,7 @@ describe "SAML AuthnRequest" do
     end
 
     it "creates the SAMLRequest URL parameter with IsPassive" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.passive = true
 
@@ -74,7 +74,7 @@ describe "SAML AuthnRequest" do
     end
 
     it "creates the SAMLRequest URL parameter with ProtocolBinding" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.protocol_binding = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
 
@@ -90,7 +90,7 @@ describe "SAML AuthnRequest" do
     end
 
     it "creates the SAMLRequest URL parameter with AttributeConsumingServiceIndex" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.attributes_index = 30
 
@@ -106,7 +106,7 @@ describe "SAML AuthnRequest" do
     end
 
     it "creates the SAMLRequest URL parameter with ForceAuthn" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.force_authn = true
 
@@ -122,7 +122,7 @@ describe "SAML AuthnRequest" do
     end
 
     it "creates the SAMLRequest URL parameter with NameID Format" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.name_identifier_format = "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
 
@@ -139,113 +139,113 @@ describe "SAML AuthnRequest" do
     end
 
     it "accepts extra parameters" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
 
-      auth_url = Saml::AuthRequest.new.create(settings, {"hello" => "there"})
+      auth_url = SAML::AuthRequest.new.create(settings, {"hello" => "there"})
       auth_url.should match(/&hello=there$/)
     end
 
     it "handles RelayState cases" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
 
       # With RelayState
-      auth_url = Saml::AuthRequest.new.create(settings, {"RelayState" => "http://example.com"})
+      auth_url = SAML::AuthRequest.new.create(settings, {"RelayState" => "http://example.com"})
       auth_url.should contain("&RelayState=http%3A%2F%2Fexample.com")
 
       # Without RelayState
-      auth_url = Saml::AuthRequest.new.create(settings, {} of String => String)
+      auth_url = SAML::AuthRequest.new.create(settings, {} of String => String)
       auth_url.should_not contain("RelayState")
     end
 
     it "creates request with ID prefixed with default '_'" do
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       request.uuid.should match(/^_/)
     end
 
     describe "when the target url doesn't contain a query string" do
       it "creates the SAMLRequest parameter correctly" do
-        settings = Saml::Settings.new
+        settings = SAML::Settings.new
         settings.idp_sso_service_url = "http://example.com"
 
-        auth_url = Saml::AuthRequest.new.create(settings)
+        auth_url = SAML::AuthRequest.new.create(settings)
         auth_url.should match(/^http:\/\/example.com\?SAMLRequest/)
       end
     end
 
     describe "when the target url contains a query string" do
       it "creates the SAMLRequest parameter correctly" do
-        settings = Saml::Settings.new
+        settings = SAML::Settings.new
         settings.idp_sso_service_url = "http://example.com?field=value"
 
-        auth_url = Saml::AuthRequest.new.create(settings)
+        auth_url = SAML::AuthRequest.new.create(settings)
         auth_url.should match(/^http:\/\/example.com\?field=value&SAMLRequest/)
       end
     end
 
     it "creates the saml:AuthnContextClassRef element correctly" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.authn_context = "secure/name/password/uri"
 
-      auth_doc = Saml::AuthRequest.new.create_authentication_xml_doc(settings)
+      auth_doc = SAML::AuthRequest.new.create_authentication_xml_doc(settings)
       auth_doc.to_s.should match(/<saml:AuthnContextClassRef>secure\/name\/password\/uri<\/saml:AuthnContextClassRef>/)
     end
 
     it "creates multiple saml:AuthnContextClassRef elements correctly" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.authn_context = ["secure/name/password/uri", "secure/email/password/uri"]
 
-      auth_doc = Saml::AuthRequest.new.create_authentication_xml_doc(settings)
+      auth_doc = SAML::AuthRequest.new.create_authentication_xml_doc(settings)
       auth_doc.to_s.should match(/<saml:AuthnContextClassRef>secure\/name\/password\/uri<\/saml:AuthnContextClassRef>/)
       auth_doc.to_s.should match(/<saml:AuthnContextClassRef>secure\/email\/password\/uri<\/saml:AuthnContextClassRef>/)
     end
 
     it "creates the saml:AuthnContextClassRef with comparison exact" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.authn_context = "secure/name/password/uri"
 
-      auth_doc = Saml::AuthRequest.new.create_authentication_xml_doc(settings)
+      auth_doc = SAML::AuthRequest.new.create_authentication_xml_doc(settings)
       auth_doc.to_s.should contain("Comparison=\"exact\"")
       auth_doc.to_s.should match(/<saml:AuthnContextClassRef>secure\/name\/password\/uri<\/saml:AuthnContextClassRef>/)
     end
 
     it "creates the saml:AuthnContextClassRef with comparison minimum" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.authn_context = "secure/name/password/uri"
       settings.authn_context_comparison = "minimum"
 
-      auth_doc = Saml::AuthRequest.new.create_authentication_xml_doc(settings)
+      auth_doc = SAML::AuthRequest.new.create_authentication_xml_doc(settings)
       auth_doc.to_s.should contain("Comparison=\"minimum\"")
       auth_doc.to_s.should match(/<saml:AuthnContextClassRef>secure\/name\/password\/uri<\/saml:AuthnContextClassRef>/)
     end
 
     it "creates the saml:AuthnContextDeclRef element correctly" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.authn_context_decl_ref = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
 
-      auth_doc = Saml::AuthRequest.new.create_authentication_xml_doc(settings)
+      auth_doc = SAML::AuthRequest.new.create_authentication_xml_doc(settings)
       auth_doc.to_s.should match(/<saml:AuthnContextDeclRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport<\/saml:AuthnContextDeclRef>/)
     end
 
     it "creates multiple saml:AuthnContextDeclRef elements correctly" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "http://example.com"
       settings.authn_context_decl_ref = ["name/password/uri", "example/decl/ref"]
 
-      auth_doc = Saml::AuthRequest.new.create_authentication_xml_doc(settings)
+      auth_doc = SAML::AuthRequest.new.create_authentication_xml_doc(settings)
       auth_doc.to_s.should match(/<saml:AuthnContextDeclRef>name\/password\/uri<\/saml:AuthnContextDeclRef>/)
       auth_doc.to_s.should match(/<saml:AuthnContextDeclRef>example\/decl\/ref<\/saml:AuthnContextDeclRef>/)
     end
 
     describe "#create_params signing with HTTP-POST binding" do
       it "creates a signed request" do
-        settings = Saml::Settings.new
+        settings = SAML::Settings.new
         settings.compress_request = false
         settings.idp_sso_service_url = "http://example.com?field=value"
         settings.security.embed_sign = true # POST binding
@@ -253,7 +253,7 @@ describe "SAML AuthnRequest" do
         settings.certificate = read_cert("ruby-saml.crt")
         settings.private_key = read_cert("ruby-saml.key")
 
-        params = Saml::AuthRequest.new.create_params(settings)
+        params = SAML::AuthRequest.new.create_params(settings)
         request_xml = Base64.decode_string(params["SAMLRequest"])
 
         request_xml.should match(/<ds:SignatureValue>([a-zA-Z0-9\/+=]+)<\/ds:SignatureValue>/)
@@ -261,17 +261,17 @@ describe "SAML AuthnRequest" do
       end
 
       it "creates a signed request with SHA256 digest and signature methods" do
-        settings = Saml::Settings.new
+        settings = SAML::Settings.new
         settings.compress_request = false
         settings.idp_sso_service_url = "http://example.com?field=value"
         settings.security.embed_sign = true # POST binding
         settings.security.authn_requests_signed = true
-        settings.security.signature_method = Saml::XMLSecurity::RSA_SHA256
-        settings.security.digest_method = Saml::XMLSecurity::SHA512
+        settings.security.signature_method = SAML::XMLSecurity::RSA_SHA256
+        settings.security.digest_method = SAML::XMLSecurity::SHA512
         settings.certificate = read_cert("ruby-saml.crt")
         settings.private_key = read_cert("ruby-saml.key")
 
-        params = Saml::AuthRequest.new.create_params(settings)
+        params = SAML::AuthRequest.new.create_params(settings)
         request_xml = Base64.decode_string(params["SAMLRequest"])
 
         request_xml.should match(/<ds:SignatureValue>([a-zA-Z0-9\/+=]+)<\/ds:SignatureValue>/)
@@ -282,22 +282,22 @@ describe "SAML AuthnRequest" do
 
     describe "#create_params signing with HTTP-Redirect binding" do
       it "creates a signature parameter with RSA_SHA1 and validates it" do
-        settings = Saml::Settings.new
+        settings = SAML::Settings.new
         settings.compress_request = false
         settings.idp_sso_service_url = "http://example.com?field=value"
         settings.security.embed_sign = false # Redirect binding
         settings.assertion_consumer_service_binding = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST-SimpleSign"
         settings.security.authn_requests_signed = true
-        settings.security.signature_method = Saml::XMLSecurity::RSA_SHA1
+        settings.security.signature_method = SAML::XMLSecurity::RSA_SHA1
         settings.certificate = read_cert("ruby-saml.crt")
         settings.private_key = read_cert("ruby-saml.key")
 
-        params = Saml::AuthRequest.new.create_params(settings, {"RelayState" => "http://example.com"})
+        params = SAML::AuthRequest.new.create_params(settings, {"RelayState" => "http://example.com"})
 
         params["SAMLRequest"]?.should_not be_nil
         params["RelayState"]?.should_not be_nil
         params["Signature"]?.should_not be_nil
-        params["SigAlg"]?.should eq(Saml::XMLSecurity::RSA_SHA1)
+        params["SigAlg"]?.should eq(SAML::XMLSecurity::RSA_SHA1)
 
         # Verify signature
         cert_text = read_cert("ruby-saml.crt")
@@ -307,27 +307,27 @@ describe "SAML AuthnRequest" do
         query_string += "&RelayState=#{URI.encode_www_form(params["RelayState"])}"
         query_string += "&SigAlg=#{URI.encode_www_form(params["SigAlg"])}"
 
-        signature_algorithm = Saml::XMLSecurity.signature_algorithm(params["SigAlg"])
+        signature_algorithm = SAML::XMLSecurity.signature_algorithm(params["SigAlg"])
         signature_bytes = Base64.decode(params["Signature"])
 
         cert.public_key.verify(signature_algorithm, signature_bytes, query_string.to_slice).should be_true
       end
 
       it "creates a signature parameter with RSA_SHA256 and validates it" do
-        settings = Saml::Settings.new
+        settings = SAML::Settings.new
         settings.compress_request = false
         settings.idp_sso_service_url = "http://example.com?field=value"
         settings.security.embed_sign = false # Redirect binding
         settings.assertion_consumer_service_binding = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST-SimpleSign"
         settings.security.authn_requests_signed = true
-        settings.security.signature_method = Saml::XMLSecurity::RSA_SHA256
+        settings.security.signature_method = SAML::XMLSecurity::RSA_SHA256
         settings.certificate = read_cert("ruby-saml.crt")
         settings.private_key = read_cert("ruby-saml.key")
 
-        params = Saml::AuthRequest.new.create_params(settings, {"RelayState" => "http://example.com"})
+        params = SAML::AuthRequest.new.create_params(settings, {"RelayState" => "http://example.com"})
 
         params["Signature"]?.should_not be_nil
-        params["SigAlg"]?.should eq(Saml::XMLSecurity::RSA_SHA256)
+        params["SigAlg"]?.should eq(SAML::XMLSecurity::RSA_SHA256)
 
         # Verify signature
         cert_text = read_cert("ruby-saml.crt")
@@ -337,7 +337,7 @@ describe "SAML AuthnRequest" do
         query_string += "&RelayState=#{URI.encode_www_form(params["RelayState"])}"
         query_string += "&SigAlg=#{URI.encode_www_form(params["SigAlg"])}"
 
-        signature_algorithm = Saml::XMLSecurity.signature_algorithm(params["SigAlg"])
+        signature_algorithm = SAML::XMLSecurity.signature_algorithm(params["SigAlg"])
         signature_bytes = Base64.decode(params["Signature"])
 
         cert.public_key.verify(signature_algorithm, signature_bytes, query_string.to_slice).should be_true
@@ -346,7 +346,7 @@ describe "SAML AuthnRequest" do
 
     describe "#manipulate request_id" do
       it "is able to modify the request id" do
-        authnrequest = Saml::AuthRequest.new
+        authnrequest = SAML::AuthRequest.new
         request_id = authnrequest.request_id
         request_id.should eq(authnrequest.uuid)
 

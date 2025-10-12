@@ -9,7 +9,7 @@ def read_response(filename)
 end
 
 # Create a test message class that exposes protected methods
-class TestSamlMessage < Saml::SamlMessage
+class TestSAMLMessage < SAML::SAMLMessage
   def test_decode_raw_saml(saml, settings)
     decode_raw_saml(saml, settings)
   end
@@ -46,10 +46,10 @@ LOGOUT_REQUEST_DOCUMENT = %{<?xml version="1.0" encoding="UTF-8"?>
   <saml:NameID Format="urn:oasis:names:tc:SAML:2.0:nameid-format:transient">_some_nameid</saml:NameID>
 </samlp:LogoutRequest>}
 
-describe Saml::SamlMessage do
+describe SAML::SAMLMessage do
   describe "#decode" do
     it "decodes base64 encoded string" do
-      saml_message = TestSamlMessage.new
+      saml_message = TestSAMLMessage.new
       encoded = "PD94bWwgdmVyc2lvbj0iMS4wIj8+PHNhbWw+dGVzdDwvc2FtbD4="
       decoded = saml_message.test_decode(encoded)
       decoded.should eq("<?xml version=\"1.0\"?><saml>test</saml>")
@@ -58,7 +58,7 @@ describe Saml::SamlMessage do
 
   describe "#encode" do
     it "encodes string to base64" do
-      saml_message = TestSamlMessage.new
+      saml_message = TestSAMLMessage.new
       string = "<?xml version=\"1.0\"?><saml>test</saml>"
       encoded = saml_message.test_encode(string)
       encoded.should eq("PD94bWwgdmVyc2lvbj0iMS4wIj8+PHNhbWw+dGVzdDwvc2FtbD4=")
@@ -67,7 +67,7 @@ describe Saml::SamlMessage do
 
   describe "#deflate and #inflate" do
     it "deflates and inflates correctly" do
-      saml_message = TestSamlMessage.new
+      saml_message = TestSAMLMessage.new
       original = LOGOUT_REQUEST_DOCUMENT
       deflated = saml_message.test_deflate(original)
       inflated = saml_message.test_inflate(deflated)
@@ -78,7 +78,7 @@ describe Saml::SamlMessage do
     end
 
     it "handles SAML responses with real data" do
-      saml_message = TestSamlMessage.new
+      saml_message = TestSAMLMessage.new
       original = "<?xml version=\"1.0\"?>\n<samlp:Response xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\">test</samlp:Response>"
       deflated = saml_message.test_deflate(original)
       inflated = saml_message.test_inflate(deflated)
@@ -90,35 +90,35 @@ describe Saml::SamlMessage do
 
   describe "#base64_encoded?" do
     it "detects base64 encoded strings" do
-      saml_message = TestSamlMessage.new
+      saml_message = TestSAMLMessage.new
       saml_message.test_base64_encoded?("PD94bWwgdmVyc2lvbj0iMS4wIj8+").should be_true
       saml_message.test_base64_encoded?("SGVsbG8gV29ybGQ=").should be_true
     end
 
     it "rejects non-base64 strings" do
-      saml_message = TestSamlMessage.new
+      saml_message = TestSAMLMessage.new
       saml_message.test_base64_encoded?("not base64!").should be_false
       saml_message.test_base64_encoded?("<?xml version='1.0'?>").should be_false
     end
 
     it "handles strings with whitespace" do
-      saml_message = TestSamlMessage.new
+      saml_message = TestSAMLMessage.new
       saml_message.test_base64_encoded?("PD94bWw \ndmVyc2lvbj0iMS4wIj8+").should be_true
     end
   end
 
   describe "#decode_raw_saml" do
     it "decodes base64 encoded SAML" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       encoded = Base64.strict_encode("<saml>test</saml>")
       decoded = saml_message.test_decode_raw_saml(encoded, settings)
       decoded.should eq("<saml>test</saml>")
     end
 
     it "handles deflated and base64 encoded SAML" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       xml = LOGOUT_REQUEST_DOCUMENT
       deflated = saml_message.test_deflate(xml)
       encoded = Base64.strict_encode(deflated)
@@ -129,25 +129,25 @@ describe Saml::SamlMessage do
     end
 
     it "rejects messages exceeding max bytesize" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       settings.message_max_bytesize = 100
       large_message = "A" * 200
 
-      expect_raises(Saml::ValidationError, /exceeds.*bytes/) do
+      expect_raises(SAML::ValidationError, /exceeds.*bytes/) do
         saml_message.test_decode_raw_saml(large_message, settings)
       end
     end
 
     it "rejects deflated messages exceeding max bytesize after inflation" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       # Create a message that's small when deflated but huge when inflated
       large_xml = "<?xml version='1.0'?><data>#{"A" * 300_000}</data>"
       deflated = saml_message.test_deflate(large_xml)
       encoded = Base64.strict_encode(deflated)
 
-      expect_raises(Saml::ValidationError, /exceeds.*bytes/) do
+      expect_raises(SAML::ValidationError, /exceeds.*bytes/) do
         saml_message.test_decode_raw_saml(encoded, settings)
       end
     end
@@ -155,8 +155,8 @@ describe Saml::SamlMessage do
 
   describe "#encode_raw_saml" do
     it "encodes with compression" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       settings.compress_request = true
       xml = "<saml>test</saml>"
 
@@ -170,8 +170,8 @@ describe Saml::SamlMessage do
     end
 
     it "encodes without compression" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       settings.compress_request = false
       xml = "<saml>test</saml>"
 
@@ -185,8 +185,8 @@ describe Saml::SamlMessage do
 
   describe "with real SAML response files" do
     it "decodes a valid base64 SAML response" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       encoded_response = read_response("valid_response.xml.base64")
       decoded = saml_message.test_decode_raw_saml(encoded_response, settings)
 
@@ -195,8 +195,8 @@ describe Saml::SamlMessage do
     end
 
     it "handles ADFS response" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       xml = File.read(File.join(__DIR__, "fixtures", "responses", "adfs_response_sha256.xml"))
       encoded = Base64.strict_encode(xml)
 
@@ -208,8 +208,8 @@ describe Saml::SamlMessage do
 
   describe "security validations" do
     it "prevents Zlib bomb attacks" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       # Create a small compressed payload that expands to huge size
       bomb_prefix = %{<?xml version='1.0'?><samlp:LogoutRequest><saml:Issuer>}
       bomb_data = bomb_prefix + "A" * 300_000
@@ -219,18 +219,18 @@ describe Saml::SamlMessage do
       deflated = saml_message.test_deflate(bomb_full)
       bomb = Base64.strict_encode(deflated)
 
-      expect_raises(Saml::ValidationError, /exceeds.*bytes/) do
+      expect_raises(SAML::ValidationError, /exceeds.*bytes/) do
         saml_message.test_decode_raw_saml(bomb, settings)
       end
     end
 
     it "validates message size before attempting base64 decode" do
-      saml_message = TestSamlMessage.new
-      settings = Saml::Settings.new
+      saml_message = TestSAMLMessage.new
+      settings = SAML::Settings.new
       # Message larger than max size
       large_message = "A" * (settings.message_max_bytesize + 100)
 
-      expect_raises(Saml::ValidationError, /exceeds.*bytes/) do
+      expect_raises(SAML::ValidationError, /exceeds.*bytes/) do
         saml_message.test_decode_raw_saml(large_message, settings)
       end
     end

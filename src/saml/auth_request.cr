@@ -1,6 +1,6 @@
-module Saml
+module SAML
   # SAML2 Authentication Request (SSO SP initiated)
-  class AuthRequest < SamlMessage
+  class AuthRequest < SAMLMessage
     property uuid : String
 
     def initialize

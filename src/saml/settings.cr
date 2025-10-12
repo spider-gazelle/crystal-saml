@@ -1,4 +1,4 @@
-module Saml
+module SAML
   # SAML2 Toolkit Settings
   class Settings
     # IdP Data

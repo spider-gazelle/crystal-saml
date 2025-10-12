@@ -8,7 +8,7 @@ require "compress/zlib"
 
 # Crystal SAML library for SAML 2.0 processing
 # Converted from ruby-saml
-module Saml
+module SAML
   {% begin %}
     VERSION = {{ `shards version "#{__DIR__}"`.chomp.stringify.downcase }}
   {% end %}

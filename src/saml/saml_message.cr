@@ -2,9 +2,9 @@ require "compress/zlib"
 require "base64"
 require "uri"
 
-module Saml
+module SAML
   # Base class for SAML messages
-  abstract class SamlMessage
+  abstract class SAMLMessage
     ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion"
     PROTOCOL  = "urn:oasis:names:tc:SAML:2.0:protocol"
 

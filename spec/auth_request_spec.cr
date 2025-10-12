@@ -1,9 +1,9 @@
 require "./spec_helper"
 
-describe Saml::AuthRequest do
+describe SAML::AuthRequest do
   describe "#initialize" do
     it "generates a UUID" do
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       request.uuid.should start_with("_")
       request.uuid.size.should eq 37
     end
@@ -11,29 +11,29 @@ describe Saml::AuthRequest do
 
   describe "#request_id" do
     it "returns the UUID" do
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       request.request_id.should eq request.uuid
     end
   end
 
   describe "#create" do
     it "creates an AuthNRequest URL" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "https://idp.example.com/sso"
       settings.sp_entity_id = "https://sp.example.com"
 
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       url = request.create(settings)
 
       url.should start_with("https://idp.example.com/sso?SAMLRequest=")
     end
 
     it "includes relay state if provided" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "https://idp.example.com/sso"
       settings.sp_entity_id = "https://sp.example.com"
 
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       url = request.create(settings, {"RelayState" => "target_page"})
 
       url.should contain("RelayState=target_page")
@@ -42,13 +42,13 @@ describe Saml::AuthRequest do
 
   describe "#create_authentication_xml_doc" do
     it "creates valid SAML XML" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "https://idp.example.com/sso"
       settings.sp_entity_id = "https://sp.example.com"
       settings.assertion_consumer_service_url = "https://sp.example.com/acs"
       settings.name_identifier_format = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
 
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       doc = request.create_authentication_xml_doc(settings)
 
       xml = doc.to_xml
@@ -58,11 +58,11 @@ describe Saml::AuthRequest do
     end
 
     it "includes NameIDPolicy" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "https://idp.example.com/sso"
       settings.name_identifier_format = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
 
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       doc = request.create_authentication_xml_doc(settings)
 
       xml = doc.to_xml
@@ -71,11 +71,11 @@ describe Saml::AuthRequest do
     end
 
     it "includes ForceAuthn when set" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "https://idp.example.com/sso"
       settings.force_authn = true
 
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       doc = request.create_authentication_xml_doc(settings)
 
       xml = doc.to_xml
@@ -83,11 +83,11 @@ describe Saml::AuthRequest do
     end
 
     it "includes IsPassive when set" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "https://idp.example.com/sso"
       settings.passive = true
 
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       doc = request.create_authentication_xml_doc(settings)
 
       xml = doc.to_xml
@@ -95,12 +95,12 @@ describe Saml::AuthRequest do
     end
 
     it "includes RequestedAuthnContext" do
-      settings = Saml::Settings.new
+      settings = SAML::Settings.new
       settings.idp_sso_service_url = "https://idp.example.com/sso"
       settings.authn_context = "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport"
       settings.authn_context_comparison = "exact"
 
-      request = Saml::AuthRequest.new
+      request = SAML::AuthRequest.new
       doc = request.create_authentication_xml_doc(settings)
 
       xml = doc.to_xml

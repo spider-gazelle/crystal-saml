@@ -2,7 +2,7 @@ require "xml"
 require "openssl"
 require "base64"
 
-module Saml
+module SAML
   module XMLSecurity
     extend self
 

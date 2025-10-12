@@ -1,6 +1,6 @@
 # Crystal SAML
 
-A Crystal lang library for SAML 2.0 processing, converted from the ruby-saml library. This implementation uses only the Crystal standard library and testing tools like timecop.
+A Crystal lang library for SAML 2.0 processing.
 
 ## Features
 
@@ -29,7 +29,7 @@ dependencies:
 ```crystal
 require "crystal-saml"
 
-settings = Saml::Settings.new
+settings = SAML::Settings.new
 settings.idp_sso_service_url = "https://idp.example.com/sso"
 settings.idp_entity_id = "https://idp.example.com"
 settings.idp_cert_fingerprint = "AA:BB:CC:DD:EE:FF:..."
@@ -40,7 +40,7 @@ settings.assertion_consumer_service_url = "https://sp.example.com/saml/acs"
 ### Creating an AuthN Request
 
 ```crystal
-request = Saml::AuthRequest.new
+request = SAML::AuthRequest.new
 url = request.create(settings)
 # Redirect user to: url
 ```
@@ -48,7 +48,7 @@ url = request.create(settings)
 ### Processing a SAML Response
 
 ```crystal
-response = Saml::Response.new(params["SAMLResponse"], settings)
+response = SAML::Response.new(params["SAMLResponse"], settings)
 
 if response.valid?
   user_id = response.name_id
@@ -67,7 +67,7 @@ end
 settings.name_identifier_value = current_user.email
 settings.sessionindex = current_user.session_index
 
-logout_request = Saml::LogoutRequest.new
+logout_request = SAML::LogoutRequest.new
 url = logout_request.create(settings)
 # Redirect user to: url
 ```
@@ -78,30 +78,22 @@ url = logout_request.create(settings)
 settings.security.authn_requests_signed = true
 settings.security.logout_requests_signed = true
 settings.security.want_assertions_signed = true
-settings.security.digest_method = Saml::XMLSecurity::SHA256
-settings.security.signature_method = Saml::XMLSecurity::RSA_SHA256
+settings.security.digest_method = SAML::XMLSecurity::SHA256
+settings.security.signature_method = SAML::XMLSecurity::RSA_SHA256
 ```
 
 ## Architecture
 
 The library is organized into the following modules:
 
-- **Saml::Utils**: Utility functions for certificates, UUIDs, encryption, etc.
-- **Saml::XMLSecurity**: XML signing and validation
-- **Saml::Settings**: Configuration management
-- **Saml::Attributes**: Attribute handling from SAML responses
-- **Saml::SamlMessage**: Base class for SAML messages with encoding/decoding
-- **Saml::Response**: SAML response processing and validation
-- **Saml::AuthRequest**: AuthN request generation
-- **Saml::LogoutRequest/LogoutResponse**: SLO support
-
-## Key Differences from Ruby Version
-
-1. **Type Safety**: Full Crystal type system with compile-time type checking
-2. **OpenSSL Bindings**: Direct use of LibCrypto for certificate/key handling
-3. **Idiomatic Crystal**: Uses Crystal's standard library (XML, OpenSSL, Base64, etc.)
-4. **Immutability**: Prefer immutable data structures where appropriate
-5. **No Dependencies**: Only Crystal stdlib and timecop for testing
+- **SAML::Utils**: Utility functions for certificates, UUIDs, encryption, etc.
+- **SAML::XMLSecurity**: XML signing and validation
+- **SAML::Settings**: Configuration management
+- **SAML::Attributes**: Attribute handling from SAML responses
+- **SAML::SAMLMessage**: Base class for SAML messages with encoding/decoding
+- **SAML::Response**: SAML response processing and validation
+- **SAML::AuthRequest**: AuthN request generation
+- **SAML::LogoutRequest/LogoutResponse**: SLO support
 
 ## Testing
 

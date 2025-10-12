@@ -1,6 +1,6 @@
-module Saml
+module SAML
   # SAML2 Authentication Response
-  class Response < SamlMessage
+  class Response < SAMLMessage
     DSIG = "http://www.w3.org/2000/09/xmldsig#"
     XENC = "http://www.w3.org/2001/04/xmlenc#"
 

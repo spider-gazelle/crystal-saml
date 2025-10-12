@@ -6,52 +6,52 @@ def read_cert(filename)
   File.read(path)
 end
 
-describe Saml::XMLSecurity do
+describe SAML::XMLSecurity do
   describe ".signature_algorithm" do
     it "returns SHA1 digest for RSA-SHA1" do
-      alg = Saml::XMLSecurity.signature_algorithm("http://www.w3.org/2000/09/xmldsig#rsa-sha1")
+      alg = SAML::XMLSecurity.signature_algorithm("http://www.w3.org/2000/09/xmldsig#rsa-sha1")
       alg.should be_a(OpenSSL::Digest)
     end
 
     it "returns SHA256 digest for RSA-SHA256" do
-      alg = Saml::XMLSecurity.signature_algorithm("http://www.w3.org/2001/04/xmldsig-more#rsa-sha256")
+      alg = SAML::XMLSecurity.signature_algorithm("http://www.w3.org/2001/04/xmldsig-more#rsa-sha256")
       alg.should be_a(OpenSSL::Digest)
     end
 
     it "returns SHA384 digest for RSA-SHA384" do
-      alg = Saml::XMLSecurity.signature_algorithm("http://www.w3.org/2001/04/xmldsig-more#rsa-sha384")
+      alg = SAML::XMLSecurity.signature_algorithm("http://www.w3.org/2001/04/xmldsig-more#rsa-sha384")
       alg.should be_a(OpenSSL::Digest)
     end
 
     it "returns SHA512 digest for RSA-SHA512" do
-      alg = Saml::XMLSecurity.signature_algorithm("http://www.w3.org/2001/04/xmldsig-more#rsa-sha512")
+      alg = SAML::XMLSecurity.signature_algorithm("http://www.w3.org/2001/04/xmldsig-more#rsa-sha512")
       alg.should be_a(OpenSSL::Digest)
     end
 
     it "defaults to SHA1 for unknown algorithms" do
-      alg = Saml::XMLSecurity.signature_algorithm("http://unknown-algorithm")
+      alg = SAML::XMLSecurity.signature_algorithm("http://unknown-algorithm")
       alg.should be_a(OpenSSL::Digest)
     end
 
     it "handles digest algorithm URIs" do
-      alg = Saml::XMLSecurity.signature_algorithm("http://www.w3.org/2001/04/xmlenc#sha256")
+      alg = SAML::XMLSecurity.signature_algorithm("http://www.w3.org/2001/04/xmlenc#sha256")
       alg.should be_a(OpenSSL::Digest)
     end
   end
 
   describe ".canon_algorithm" do
     it "returns c14n for standard canonicalization" do
-      result = Saml::XMLSecurity.canon_algorithm("http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
+      result = SAML::XMLSecurity.canon_algorithm("http://www.w3.org/TR/2001/REC-xml-c14n-20010315")
       result.should eq("c14n")
     end
 
     it "returns c14n11 for C14N 1.1" do
-      result = Saml::XMLSecurity.canon_algorithm("http://www.w3.org/2006/12/xml-c14n11")
+      result = SAML::XMLSecurity.canon_algorithm("http://www.w3.org/2006/12/xml-c14n11")
       result.should eq("c14n11")
     end
 
     it "defaults to exclusive canonicalization" do
-      result = Saml::XMLSecurity.canon_algorithm("http://www.w3.org/2001/10/xml-exc-c14n#")
+      result = SAML::XMLSecurity.canon_algorithm("http://www.w3.org/2001/10/xml-exc-c14n#")
       result.should eq("c14n_exclusive")
     end
   end
@@ -75,10 +75,10 @@ describe Saml::XMLSecurity do
       key = OpenSSL::PKey::RSA.new(key_pem, nil)
       cert = OpenSSL::X509::Certificate.new(cert_pem)
 
-      signed_xml = Saml::XMLSecurity.sign_document(
+      signed_xml = SAML::XMLSecurity.sign_document(
         xml, key, cert, "_test_id",
-        Saml::XMLSecurity::RSA_SHA256,
-        Saml::XMLSecurity::SHA256
+        SAML::XMLSecurity::RSA_SHA256,
+        SAML::XMLSecurity::SHA256
       )
 
       # Verify the signed document contains signature elements
@@ -97,10 +97,10 @@ describe Saml::XMLSecurity do
       key = OpenSSL::PKey::RSA.new(key_pem, nil)
       cert = OpenSSL::X509::Certificate.new(cert_pem)
 
-      signed_xml = Saml::XMLSecurity.sign_document(
+      signed_xml = SAML::XMLSecurity.sign_document(
         xml, key, cert, "test",
-        Saml::XMLSecurity::RSA_SHA1,
-        Saml::XMLSecurity::SHA1
+        SAML::XMLSecurity::RSA_SHA1,
+        SAML::XMLSecurity::SHA1
       )
 
       # Parse and check certificate is embedded
@@ -146,22 +146,22 @@ describe Saml::XMLSecurity do
 
   describe "Signature Algorithms with different hash functions" do
     it "supports SHA1 signatures" do
-      alg = Saml::XMLSecurity.signature_algorithm(Saml::XMLSecurity::RSA_SHA1)
+      alg = SAML::XMLSecurity.signature_algorithm(SAML::XMLSecurity::RSA_SHA1)
       alg.should be_a(OpenSSL::Digest)
     end
 
     it "supports SHA256 signatures" do
-      alg = Saml::XMLSecurity.signature_algorithm(Saml::XMLSecurity::RSA_SHA256)
+      alg = SAML::XMLSecurity.signature_algorithm(SAML::XMLSecurity::RSA_SHA256)
       alg.should be_a(OpenSSL::Digest)
     end
 
     it "supports SHA384 signatures" do
-      alg = Saml::XMLSecurity.signature_algorithm(Saml::XMLSecurity::RSA_SHA384)
+      alg = SAML::XMLSecurity.signature_algorithm(SAML::XMLSecurity::RSA_SHA384)
       alg.should be_a(OpenSSL::Digest)
     end
 
     it "supports SHA512 signatures" do
-      alg = Saml::XMLSecurity.signature_algorithm(Saml::XMLSecurity::RSA_SHA512)
+      alg = SAML::XMLSecurity.signature_algorithm(SAML::XMLSecurity::RSA_SHA512)
       alg.should be_a(OpenSSL::Digest)
     end
   end

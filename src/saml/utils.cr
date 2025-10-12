@@ -3,7 +3,7 @@ require "base64"
 require "uri"
 require "uuid"
 
-module Saml
+module SAML
   # Utility methods for SAML processing
   module Utils
     extend self

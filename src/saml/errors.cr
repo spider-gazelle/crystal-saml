@@ -1,4 +1,4 @@
-module Saml
+module SAML
   # Base SAML error
   class Error < Exception
   end

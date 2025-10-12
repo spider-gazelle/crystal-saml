@@ -1,6 +1,6 @@
-module Saml
+module SAML
   # SAML2 Logout Request (SLO SP initiated)
-  class LogoutRequest < SamlMessage
+  class LogoutRequest < SAMLMessage
     property uuid : String
 
     def initialize

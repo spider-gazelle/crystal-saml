@@ -1,6 +1,6 @@
-module Saml
+module SAML
   # SAML2 Logout Response
-  class LogoutResponse < SamlMessage
+  class LogoutResponse < SAMLMessage
     property uuid : String
 
     getter document : XML::Node
