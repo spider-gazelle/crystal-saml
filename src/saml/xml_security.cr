@@ -1,6 +1,7 @@
 require "xml"
 require "openssl"
 require "base64"
+require "./c14n"
 
 module SAML
   module XMLSecurity
@@ -157,224 +158,29 @@ module SAML
     # Canonicalize XML using Exclusive Canonicalization (xml-exc-c14n#)
     # Implements the W3C Exclusive XML Canonicalization specification
     # https://www.w3.org/TR/xml-exc-c14n/
-    def canonicalize(xml : String) : String
-      # Crystal's XML doesn't have built-in C14N, so we do basic normalization
-      # There are different modes and options that should be implemented
-      doc = XML.parse(xml)
-      root = doc.first_element_child
-      return "" unless root
+    def canonicalize(xml : String, inclusive_prefixes : Array(String) = [] of String) : String
+      # Use our C14N 1.1 implementation with Exclusive mode
+      # Parse xml to check for InclusiveNamespaces in case this is a SignedInfo
+      inc_ns_prefixes = inclusive_prefixes.dup
 
-      canonicalize_node(root, nil, [] of String)
-    end
-
-    # Recursively canonicalize an XML node
-    private def canonicalize_node(node : XML::Node, parent_namespaces : Hash(String, String)?, inclusive_prefixes : Array(String)) : String
-      return "" unless node.element?
-
-      # Track namespaces in scope (inherited from parent)
-      current_namespaces = parent_namespaces ? parent_namespaces.dup : {} of String => String
-
-      # Collect namespace declarations explicitly on this element
-      node_namespaces = {} of String => String
-      node.attributes.each do |attr|
-        if attr.name == "xmlns"
-          node_namespaces[""] = attr.content
-        elsif attr.name.starts_with?("xmlns:")
-          prefix = attr.name[6..]
-          node_namespaces[prefix] = attr.content
-        end
-      end
-
-      # IMPORTANT: Handle namespace from the element's namespace object
-      if node.namespace
-        ns = node.namespace.not_nil!
-        if href = ns.href
-          prefix = ns.prefix || ""
-          # Only add if not already explicitly declared on this element
-          unless node_namespaces.has_key?(prefix)
-            node_namespaces[prefix] = href
+      begin
+        doc = XML.parse(xml)
+        # Check if this has InclusiveNamespaces declaration
+        inc_ns = doc.xpath_node("//ec:InclusiveNamespaces", {"ec" => C14N})
+        if inc_ns
+          if prefix_list = inc_ns["PrefixList"]?
+            # Parse the prefix list (space-separated, "#default" means default namespace)
+            prefixes = prefix_list.split(/\s+/).map(&.strip).reject(&.empty?)
+            prefixes.each do |pref|
+              inc_ns_prefixes << pref unless pref == "#default"
+            end
           end
         end
-      else
-        # CRITICAL: If namespace is nil but element name contains ':', the namespace was lost during parsing
-        # This happens when extracting an element with .to_xml() that had inherited namespaces
-        # We need to infer the namespace from the known SAML/XML namespaces
-        if node.name.includes?(':')
-          prefix, local_name = node.name.split(':', 2)
-          # Map known prefixes to their namespace URIs
-          known_namespaces = {
-            "ds"    => DSIG,
-            "saml"  => "urn:oasis:names:tc:SAML:2.0:assertion",
-            "samlp" => "urn:oasis:names:tc:SAML:2.0:protocol",
-            "xsi"   => "http://www.w3.org/2001/XMLSchema-instance",
-            "xs"    => "http://www.w3.org/2001/XMLSchema",
-          }
-          if uri = known_namespaces[prefix]?
-            node_namespaces[prefix] = uri
-          end
-        end
+      rescue
+        # If parsing fails, just use provided inclusive prefixes
       end
 
-      # Merge node namespaces into current scope
-      current_namespaces.merge!(node_namespaces)
-
-      # Collect visibly utilized namespaces for this element
-      utilized_namespaces = {} of String => String
-
-      # Element's own namespace
-      if node.namespace
-        ns = node.namespace.not_nil!
-        if href = ns.href
-          prefix = ns.prefix || ""
-          utilized_namespaces[prefix] = href
-        end
-      elsif node.name.includes?(':')
-        # Namespace was lost - use the inferred namespace from node_namespaces
-        prefix = node.name.split(':', 2)[0]
-        if uri = current_namespaces[prefix]?
-          utilized_namespaces[prefix] = uri
-        end
-      end
-
-      # Attribute namespaces
-      node.attributes.each do |attr|
-        next if attr.name.starts_with?("xmlns")
-        if attr.namespace
-          ns = attr.namespace.not_nil!
-          if href = ns.href
-            prefix = ns.prefix || ""
-            utilized_namespaces[prefix] = href
-          end
-        elsif attr.name.includes?(':')
-          # Attribute namespace was also lost
-          prefix = attr.name.split(':', 2)[0]
-          if uri = current_namespaces[prefix]?
-            utilized_namespaces[prefix] = uri
-          end
-        end
-      end
-
-      # Build canonical output
-      result = String.build do |io|
-        # Start tag
-        io << "<"
-
-        # Handle element name and prefix
-        element_name = node.name
-        element_prefix = ""
-
-        if ns = node.namespace
-          # Namespace object exists - use it
-          element_prefix = ns.prefix || ""
-          io << element_prefix << ":" if !element_prefix.empty?
-          io << element_name
-        elsif node.name.includes?(':')
-          # Namespace was lost but prefix is in name - split it
-          parts = node.name.split(':', 2)
-          element_prefix = parts[0]
-          element_name = parts[1]
-          io << element_prefix << ":" << element_name
-        else
-          # No namespace
-          io << element_name
-        end
-
-        # Namespace declarations (only visibly utilized, sorted)
-        ns_decls = [] of {String, String}
-        utilized_namespaces.each do |prefix, uri|
-          # Only include if not already declared in parent or if redeclared
-          if !parent_namespaces || parent_namespaces[prefix]? != uri
-            ns_decls << {prefix, uri}
-          end
-        end
-
-        # Sort namespace declarations: default namespace first, then by prefix
-        ns_decls.sort_by! { |p, u| p.empty? ? "\x00" : p }
-        ns_decls.each do |prefix, uri|
-          if prefix.empty?
-            io << %( xmlns=")
-          else
-            io << %( xmlns:#{prefix}=")
-          end
-          io << escape_attribute(uri)
-          io << %(")
-        end
-
-        # Attributes (non-namespace, sorted)
-        attrs = [] of {String, String, String}
-        node.attributes.each do |attr|
-          next if attr.name == "xmlns" || attr.name.starts_with?("xmlns:")
-
-          ns_prefix = attr.namespace.try(&.prefix) || ""
-          attrs << {ns_prefix, attr.name, attr.content}
-        end
-
-        # Sort attributes by namespace URI, then local name
-        attrs.sort_by! do |ns_prefix, name, value|
-          ns_uri = ns_prefix.empty? ? "" : (current_namespaces[ns_prefix]? || "")
-          {ns_uri, name}
-        end
-
-        attrs.each do |ns_prefix, name, value|
-          io << " "
-          io << ns_prefix << ":" if !ns_prefix.empty?
-          io << name
-          io << %(=")
-          io << escape_attribute(value)
-          io << %(")
-        end
-
-        io << ">"
-
-        # Child nodes
-        node.children.each do |child|
-          if child.element?
-            io << canonicalize_node(child, current_namespaces, inclusive_prefixes)
-          elsif child.text?
-            # Include text nodes (excluding whitespace-only nodes)
-            content = child.content
-            io << escape_text(content) unless content.strip.empty?
-          end
-        end
-
-        # End tag
-        io << "</"
-        if !element_prefix.empty?
-          io << element_prefix << ":"
-        end
-        io << element_name
-        io << ">"
-      end
-
-      result
-    end
-
-    # Escape text content for C14N
-    private def escape_text(text : String) : String
-      text.gsub(/[&<>\r]/) do |match|
-        case match
-        when "&"  then "&amp;"
-        when "<"  then "&lt;"
-        when ">"  then "&gt;"
-        when "\r" then "&#xD;"
-        else           match
-        end
-      end
-    end
-
-    # Escape attribute values for C14N
-    private def escape_attribute(value : String) : String
-      value.gsub(/[&<"\t\n\r]/) do |match|
-        case match
-        when "&"  then "&amp;"
-        when "<"  then "&lt;"
-        when "\"" then "&quot;"
-        when "\t" then "&#x9;"
-        when "\n" then "&#xA;"
-        when "\r" then "&#xD;"
-        else           match
-        end
-      end
+      ::C14N.c14n(xml, exclusive: true, inclusive_prefixes: inc_ns_prefixes, with_comments: false)
     end
 
     # Build SignedInfo element
