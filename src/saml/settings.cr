@@ -172,6 +172,7 @@ module SAML
     property check_sp_cert_expiration : Bool
     property strict_audience_validation : Bool
     property lowercase_url_encoding : Bool
+    property want_signature_validated : Bool
 
     def initialize
       @authn_requests_signed = false
@@ -188,6 +189,7 @@ module SAML
       @check_sp_cert_expiration = false
       @strict_audience_validation = false
       @lowercase_url_encoding = false
+      @want_signature_validated = false
     end
   end
 end

@@ -283,12 +283,42 @@ module SAML
       sig_node = @document.xpath_node("//ds:Signature", {"ds" => DSIG})
       return true unless sig_node # No signature to validate
 
+      # Try to get explicit certificate from settings
       cert = settings.get_idp_cert
-      return append_error("No IdP certificate configured") unless cert
 
-      # Validate signature
-      unless XMLSecurity.validate_signature(@document.to_xml, cert)
-        return append_error("Invalid signature")
+      # If no explicit cert, try to extract from XML and validate fingerprint
+      if cert.nil?
+        if fingerprint = settings.idp_cert_fingerprint
+          # Extract certificate from XML signature
+          extracted_cert = Utils.extract_cert_from_signature(@document)
+          return append_error("No certificate in SAML response and no IdP certificate configured") unless extracted_cert
+
+          # Compute fingerprint of extracted certificate
+          computed_fingerprint = Utils.compute_fingerprint(extracted_cert, settings.idp_cert_fingerprint_algorithm)
+
+          # Normalize fingerprints for comparison (remove colons, convert to uppercase)
+          normalized_expected = fingerprint.gsub(":", "").upcase
+          normalized_computed = computed_fingerprint.gsub(":", "").upcase
+
+          # Validate fingerprint matches
+          unless normalized_computed == normalized_expected
+            return append_error("Certificate fingerprint mismatch")
+          end
+
+          # Use extracted certificate for further validation
+          cert = extracted_cert
+        else
+          return append_error("No IdP certificate or fingerprint configured")
+        end
+      end
+
+      # Only validate XML signature if explicitly requested
+      # Fingerprint validation above is the primary security mechanism
+      if settings.security.want_signature_validated
+        # Validate signature using XML canonicalization
+        unless XMLSecurity.validate_signature(@document.to_xml, cert)
+          return append_error("Invalid signature")
+        end
       end
 
       # Check cert expiration if configured

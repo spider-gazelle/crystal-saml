@@ -283,5 +283,31 @@ module SAML
     rescue URI::Error
       url1 == url2
     end
+
+    # Extract certificate from XML signature
+    def extract_cert_from_signature(document : XML::Node) : OpenSSL::X509::Certificate?
+      cert_node = document.xpath_node("//ds:Signature/ds:KeyInfo/ds:X509Data/ds:X509Certificate", {"ds" => DSIG})
+      return nil unless cert_node
+
+      cert_text = cert_node.content.strip
+      return nil if cert_text.empty?
+
+      build_cert(cert_text)
+    end
+
+    # Compute certificate fingerprint with specified algorithm
+    def compute_fingerprint(cert : OpenSSL::X509::Certificate, algorithm : String = XMLSecurity::SHA256) : String
+      digest_algorithm = XMLSecurity.signature_algorithm(algorithm)
+
+      # Convert certificate to DER format for fingerprinting
+      pem = cert.to_pem
+      # Extract base64 content between BEGIN and END markers
+      der_b64 = pem.lines.reject { |l| l.includes?("BEGIN") || l.includes?("END") }.join
+      der_bytes = Base64.decode(der_b64)
+
+      # Compute fingerprint and format as XX:XX:XX:...
+      fingerprint = digest_algorithm.update(der_bytes).final
+      fingerprint.hexstring.upcase.scan(/../).join(":")
+    end
   end
 end
