@@ -84,6 +84,47 @@ module SAML
       insert_signature(xml, signature_xml)
     end
 
+    # Serialize a node while preserving the namespace it INHERITS from an
+    # ancestor.
+    #
+    # `XML::Node#to_xml` serializes an element out of its document context. If
+    # the element's namespace was declared on an ancestor rather than on the
+    # element itself, that declaration is lost:
+    #
+    #   <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+    #     <SignedInfo>...          =>  to_xml  =>  "<SignedInfo>..."
+    #
+    # The signer canonicalized `SignedInfo` in context, so its bytes carry
+    # `xmlns="...xmldsig#"`. Ours did not, so the digests differed and every
+    # signature verification failed.
+    #
+    # This only ever bit signatures that declare the XML-DSig namespace as a
+    # DEFAULT namespace on `<Signature>` — which is what real IdPs emit
+    # (mock-saml, Azure AD, ADFS). Signatures using a `ds:` prefix round-trip
+    # correctly because libxml2 keeps prefixed declarations when serializing.
+    # That is why this went unnoticed: the library was only ever verifying
+    # signatures it had produced itself, and it signs with a `ds:` prefix.
+    #
+    # Only the element's OWN namespace is re-declared. Injecting every in-scope
+    # ancestor namespace would be wrong under Exclusive C14N, which
+    # deliberately omits declarations the element does not visibly utilise.
+    private def serialize_in_namespace(node : XML::Node) : String
+      xml = node.to_xml
+      ns = node.namespace
+      return xml unless ns
+      href = ns.href
+      return xml if href.nil? || href.empty?
+
+      prefix = ns.prefix
+      declaration = prefix ? %(xmlns:#{prefix}="#{href}") : %(xmlns="#{href}")
+      tag = prefix ? "#{prefix}:#{node.name}" : node.name
+
+      # already carried through by the serializer (prefixed case) — leave as is
+      return xml if xml.starts_with?("<#{tag} #{declaration}") || xml.includes?(declaration)
+
+      xml.sub("<#{tag}", "<#{tag} #{declaration}")
+    end
+
     # Validate XML signature
     def validate_signature(xml : String, certificate : OpenSSL::X509::Certificate) : Bool
       doc = XML.parse(xml)
@@ -100,7 +141,7 @@ module SAML
       # Get and canonicalize SignedInfo
       signed_info = signature.xpath_node(".//ds:SignedInfo", {"ds" => DSIG})
       return false unless signed_info
-      canonical_signed_info = canonicalize(signed_info.to_xml)
+      canonical_signed_info = canonicalize(serialize_in_namespace(signed_info))
 
       # Get signature method
       sig_method = signed_info.xpath_node(".//ds:SignatureMethod", {"ds" => DSIG})
