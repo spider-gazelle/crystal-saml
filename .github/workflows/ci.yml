@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # catches breakage from Crystal nightly without waiting for a push
+    - cron: "0 3 * * 1"
+
+jobs:
+  spec:
+    strategy:
+      fail-fast: false
+      matrix:
+        # latest + nightly only. Older Crystal releases are not supported:
+        # the `timecop` dev dependency references `Time::Instant`, which does
+        # not exist before recent versions, so the suite cannot even compile
+        # there. Testing them would report failures that say nothing about
+        # this library.
+        crystal: [latest, nightly]
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.crystal == 'nightly' }}
+    container: crystallang/crystal:${{ matrix.crystal }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shards
+        run: shards install --ignore-crystal-version
+
+      - name: Check formatting
+        run: crystal tool format --check
+
+      - name: Run specs
+        run: crystal spec --error-trace
