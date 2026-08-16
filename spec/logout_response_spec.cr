@@ -275,3 +275,34 @@ describe "SAML LogoutResponse" do
     end
   end
 end
+
+describe "SAML LogoutResponse" do
+  describe "namespace declarations" do
+    it "binds the samlp: and saml: prefixes with real xmlns attributes" do
+      settings = SAML::Settings.new
+      settings.compress_response = false
+      settings.idp_slo_response_service_url = "http://example.com/slo"
+      settings.sp_entity_id = "https://sp.example.com"
+
+      logout_response = SAML::LogoutResponse.create(settings, "_request_id_123")
+      params = logout_response.split("SAMLResponse=")[1].split("&")[0]
+      decoded = String.new(Base64.decode(URI.decode_www_form(params)))
+
+      decoded.should contain(%(xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"))
+      decoded.should_not contain("xmlns_")
+    end
+
+    it "can parse the status of its own generated response" do
+      settings = SAML::Settings.new
+      settings.idp_slo_response_service_url = "http://example.com/slo"
+      settings.sp_entity_id = "https://sp.example.com"
+
+      # The reader methods use namespace-bound XPath, so this only works
+      # when the builder actually declares the namespaces it uses
+      response = SAML::LogoutResponse.new_from_builder(settings, "_request_id_123")
+      response.success?.should be_true
+      response.in_response_to.should eq "_request_id_123"
+      response.issuer.should eq "https://sp.example.com"
+    end
+  end
+end

@@ -110,3 +110,31 @@ describe SAML::AuthRequest do
     end
   end
 end
+
+describe SAML::AuthRequest do
+  describe "namespace declarations" do
+    it "binds the samlp: and saml: prefixes with real xmlns attributes" do
+      settings = SAML::Settings.new
+      settings.idp_sso_service_url = "https://idp.example.com/sso"
+      settings.sp_entity_id = "https://sp.example.com"
+      settings.name_identifier_format = "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"
+
+      request = SAML::AuthRequest.new
+      xml = request.create_authentication_xml_doc(settings).to_xml
+
+      xml.should contain(%(xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"))
+      xml.should contain(%(xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"))
+      xml.should_not contain("xmlns_")
+
+      # A namespace-aware parser (as used by Shibboleth/OpenSAML) must be
+      # able to resolve the prefixed elements
+      doc = XML.parse(xml)
+      doc.xpath_node("/samlp:AuthnRequest",
+        {"samlp" => "urn:oasis:names:tc:SAML:2.0:protocol"}).should_not be_nil
+      issuer = doc.xpath_node("/samlp:AuthnRequest/saml:Issuer",
+        {"samlp" => "urn:oasis:names:tc:SAML:2.0:protocol",
+         "saml"  => "urn:oasis:names:tc:SAML:2.0:assertion"})
+      issuer.try(&.content).should eq "https://sp.example.com"
+    end
+  end
+end

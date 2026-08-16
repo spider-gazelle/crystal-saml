@@ -70,12 +70,16 @@ module SAML
       time = Time.utc.to_s("%Y-%m-%dT%H:%M:%SZ")
 
       builder = XML.build(indent: "  ") do |xml|
-        xml.element("samlp:AuthnRequest",
-          xmlns_samlp: "urn:oasis:names:tc:SAML:2.0:protocol",
-          xmlns_saml: "urn:oasis:names:tc:SAML:2.0:assertion",
-          ID: @uuid,
-          Version: "2.0",
-          IssueInstant: time) do
+        # String keys: named args can't express the ':' in xmlns:samlp, and
+        # an underscored attribute leaves the prefixes unbound — Shibboleth
+        # (and any namespace-aware IdP) rejects the message outright.
+        xml.element("samlp:AuthnRequest", {
+          "xmlns:samlp"  => "urn:oasis:names:tc:SAML:2.0:protocol",
+          "xmlns:saml"   => "urn:oasis:names:tc:SAML:2.0:assertion",
+          "ID"           => @uuid,
+          "Version"      => "2.0",
+          "IssueInstant" => time,
+        }) do
           # Add optional attributes
           if url = settings.idp_sso_service_url
             xml.attribute("Destination", url)

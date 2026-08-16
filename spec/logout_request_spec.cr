@@ -282,3 +282,24 @@ describe "SAML LogoutRequest" do
     end
   end
 end
+
+describe "SAML LogoutRequest" do
+  describe "namespace declarations" do
+    it "binds the samlp: and saml: prefixes with real xmlns attributes" do
+      settings = SAML::Settings.new
+      settings.idp_slo_service_url = "https://idp.example.com/slo"
+      settings.sp_entity_id = "https://sp.example.com"
+
+      request = SAML::LogoutRequest.new
+      xml = request.create_logout_request_xml_doc(settings).to_xml
+
+      xml.should contain(%(xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"))
+      xml.should contain(%(xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"))
+      xml.should_not contain("xmlns_")
+
+      doc = XML.parse(xml)
+      doc.xpath_node("/samlp:LogoutRequest",
+        {"samlp" => "urn:oasis:names:tc:SAML:2.0:protocol"}).should_not be_nil
+    end
+  end
+end

@@ -36,12 +36,15 @@ module SAML
       response_id = Utils.uuid
 
       builder = XML.build(indent: "  ") do |xml|
-        xml.element("samlp:LogoutResponse",
-          xmlns_samlp: "urn:oasis:names:tc:SAML:2.0:protocol",
-          xmlns_saml: "urn:oasis:names:tc:SAML:2.0:assertion",
-          ID: response_id,
-          Version: "2.0",
-          IssueInstant: time) do
+        # String keys: named args can't express the ':' in xmlns:samlp (see
+        # AuthRequest#create_authentication_xml_doc).
+        xml.element("samlp:LogoutResponse", {
+          "xmlns:samlp"  => "urn:oasis:names:tc:SAML:2.0:protocol",
+          "xmlns:saml"   => "urn:oasis:names:tc:SAML:2.0:assertion",
+          "ID"           => response_id,
+          "Version"      => "2.0",
+          "IssueInstant" => time,
+        }) do
           # Add InResponseTo if we have a request ID
           xml.attribute("InResponseTo", request_id) if request_id
 

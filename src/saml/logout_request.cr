@@ -68,12 +68,15 @@ module SAML
       time = Time.utc.to_s("%Y-%m-%dT%H:%M:%SZ")
 
       builder = XML.build(indent: "  ") do |xml|
-        xml.element("samlp:LogoutRequest",
-          xmlns_samlp: "urn:oasis:names:tc:SAML:2.0:protocol",
-          xmlns_saml: "urn:oasis:names:tc:SAML:2.0:assertion",
-          ID: @uuid,
-          Version: "2.0",
-          IssueInstant: time) do
+        # String keys: named args can't express the ':' in xmlns:samlp (see
+        # AuthRequest#create_authentication_xml_doc).
+        xml.element("samlp:LogoutRequest", {
+          "xmlns:samlp"  => "urn:oasis:names:tc:SAML:2.0:protocol",
+          "xmlns:saml"   => "urn:oasis:names:tc:SAML:2.0:assertion",
+          "ID"           => @uuid,
+          "Version"      => "2.0",
+          "IssueInstant" => time,
+        }) do
           # Add destination if available
           if url = settings.idp_slo_service_url
             xml.attribute("Destination", url)
