@@ -160,13 +160,15 @@ module SAML
       parse_time(conditions, "NotOnOrAfter")
     end
 
-    # Allowed clock drift for time validation
+    # Allowed clock drift for time validation. An explicit
+    # `options[:allowed_clock_drift]` wins; otherwise the settings-level
+    # tolerance applies (10s by default, matching the legacy Ruby service).
     def allowed_clock_drift : Time::Span
       drift = options.try(&.[]?(:allowed_clock_drift))
       if drift.is_a?(Number)
         Time::Span.new(seconds: drift.to_f.abs.to_i)
       else
-        Time::Span.zero
+        settings.allowed_clock_drift
       end
     end
 
@@ -316,7 +318,7 @@ module SAML
       # Fingerprint validation above is the primary security mechanism
       if settings.security.want_signature_validated
         # Validate signature using XML canonicalization
-        unless XMLSecurity.validate_signature(@document.to_xml, cert)
+        unless XMLSecurity.validate_signature(@document.to_xml(options: XML::SaveOptions::AS_XML), cert)
           return append_error("Invalid signature")
         end
       end

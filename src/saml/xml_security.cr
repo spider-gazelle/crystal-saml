@@ -109,7 +109,10 @@ module SAML
     # ancestor namespace would be wrong under Exclusive C14N, which
     # deliberately omits declarations the element does not visibly utilise.
     private def serialize_in_namespace(node : XML::Node) : String
-      xml = node.to_xml
+      # AS_XML without FORMAT: the default `to_xml` pretty-prints, injecting
+      # indentation text nodes that were never in the signed document and
+      # corrupting the canonical form.
+      xml = node.to_xml(options: XML::SaveOptions::AS_XML)
       ns = node.namespace
       return xml unless ns
       href = ns.href
@@ -169,8 +172,24 @@ module SAML
       referenced = doc.xpath_node("//*[@ID='#{id}']")
       return false unless referenced
 
-      # Make a copy of the referenced element and remove any signature within it
-      ref_copy_xml = referenced.to_xml
+      # The signer's exclusive-c14n transform may carry an InclusiveNamespaces
+      # PrefixList (Shibboleth signs with PrefixList="xsd"). It lives inside
+      # the Signature that the enveloped transform is about to remove, so it
+      # must be read from the Reference now and passed through explicitly —
+      # canonicalize() cannot discover it from the signature-free document.
+      inclusive_prefixes = [] of String
+      if inc_ns = reference.xpath_node(".//ec:InclusiveNamespaces", {"ec" => C14N})
+        if prefix_list = inc_ns["PrefixList"]?
+          prefix_list.split(/\s+/).map(&.strip).reject(&.empty?).each do |pref|
+            inclusive_prefixes << pref unless pref == "#default"
+          end
+        end
+      end
+
+      # Make a copy of the referenced element and remove any signature within
+      # it. Serialize verbatim (no FORMAT) — pretty-printing would inject
+      # whitespace the signer never saw.
+      ref_copy_xml = referenced.to_xml(options: XML::SaveOptions::AS_XML)
       ref_doc = XML.parse(ref_copy_xml)
 
       # Remove signature if present (enveloped-signature transform)
@@ -178,7 +197,7 @@ module SAML
       sig_node.try(&.unlink)
 
       # Canonicalize only the referenced element
-      canonical = canonicalize(ref_doc.to_xml)
+      canonical = canonicalize(ref_doc.to_xml(options: XML::SaveOptions::AS_XML), inclusive_prefixes)
 
       # Get digest method
       digest_method = reference.xpath_node(".//ds:DigestMethod", {"ds" => DSIG})

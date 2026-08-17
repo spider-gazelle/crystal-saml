@@ -299,8 +299,12 @@ module C14N
         when XML::Node::Type::ELEMENT_NODE
           el.children << build_element(child, el)
         when XML::Node::Type::TEXT_NODE, XML::Node::Type::CDATA_SECTION_NODE
-          text = child.content
-          el.children << TextNode.new(text, el) unless text.strip.empty?
+          # Whitespace-only text nodes are part of the canonical form (C14N
+          # emits every text node in the subset verbatim). Dropping them
+          # breaks verification of signatures from Apache Santuario
+          # (Shibboleth, Okta, ...), which put newlines between SignedInfo
+          # children and sign those bytes.
+          el.children << TextNode.new(child.content, el)
         when XML::Node::Type::COMMENT_NODE
           el.children << CommentNode.new(child.content, el)
         when XML::Node::Type::PI_NODE
