@@ -39,6 +39,12 @@ module SAML
     property force_authn : Bool?
     property soft : Bool
 
+    # Tolerance applied to NotBefore/NotOnOrAfter validation. Defaults to
+    # 10 seconds, matching the legacy PlaceOS Ruby service
+    # (generic_adfs.rb set `options.allowed_clock_drift = 10.seconds`);
+    # a response-level `options[:allowed_clock_drift]` overrides it.
+    property allowed_clock_drift : Time::Span
+
     # Authentication Context
     property authn_context : String | Array(String)?
     property authn_context_comparison : String?
@@ -85,6 +91,7 @@ module SAML
       @attributes_index = nil
       @force_authn = nil
       @soft = true
+      @allowed_clock_drift = 10.seconds
 
       # Authentication context
       @authn_context = nil
