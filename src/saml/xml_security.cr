@@ -55,13 +55,23 @@ module SAML
       end
     end
 
+    # Prefixes advertised in the exclusive-c14n transform's
+    # InclusiveNamespaces, as an array ("#default" excluded)
+    private def inc_prefixes : Array(String)
+      INC_PREFIX_LIST.split(/\s+/).map(&.strip).reject { |p| p.empty? || p == "#default" }
+    end
+
     # Sign an XML document
     def sign_document(xml : String, private_key : OpenSSL::PKey::RSA, certificate : OpenSSL::X509::Certificate,
                       uuid : String, signature_method : String = RSA_SHA1, digest_method : String = SHA1) : String
       doc = XML.parse(xml)
 
-      # Create canonical form for digest calculation
-      canonical = canonicalize(xml)
+      # Create canonical form for digest calculation. The digest MUST be
+      # computed with the same InclusiveNamespaces PrefixList the SignedInfo
+      # advertises in its transform (INC_PREFIX_LIST) — a verifier applies
+      # the declared transform, and computing the digest without it produces
+      # signatures only a symmetrically-broken verifier accepts.
+      canonical = canonicalize(xml, inc_prefixes)
 
       # Compute digest
       digest_alg = signature_algorithm(digest_method)
@@ -128,6 +138,38 @@ module SAML
       xml.sub("<#{tag}", "<#{tag} #{declaration}")
     end
 
+    # Serialize an element subtree carrying over every namespace declaration
+    # that is in scope on the element but declared on an ancestor —
+    # `to_xml` drops those, and a Reference target (e.g. an Assertion whose
+    # `saml` prefix is declared on the Response root) then canonicalizes
+    # without declarations the signer's c14n emitted. Exclusive C14N of the
+    # re-parsed copy still omits any injected declaration that is neither
+    # visibly utilized nor in the InclusiveNamespaces PrefixList, so
+    # over-declaring here is safe. Only the ROOT TAG is checked for existing
+    # declarations — a redeclaration on a descendant must not suppress the
+    # root-level injection.
+    private def serialize_with_scope(node : XML::Node) : String
+      xml = node.to_xml(options: XML::SaveOptions::AS_XML)
+      root_tag_end = xml.index('>')
+      return xml unless root_tag_end
+      root_tag = xml[0, root_tag_end]
+
+      additions = String.build do |io|
+        node.namespace_scopes.each do |ns|
+          href = ns.href
+          next if href.nil? || href.empty?
+          prefix = ns.prefix
+          attr = prefix ? "xmlns:#{prefix}=" : "xmlns="
+          next if root_tag.includes?(attr)
+          io << ' ' << attr << '"' << href << '"'
+        end
+      end
+      return xml if additions.empty?
+
+      name_end = root_tag.index(' ') || root_tag_end
+      xml[0, name_end] + additions + xml[name_end..]
+    end
+
     # Validate XML signature
     def validate_signature(xml : String, certificate : OpenSSL::X509::Certificate) : Bool
       doc = XML.parse(xml)
@@ -189,7 +231,7 @@ module SAML
       # Make a copy of the referenced element and remove any signature within
       # it. Serialize verbatim (no FORMAT) — pretty-printing would inject
       # whitespace the signer never saw.
-      ref_copy_xml = referenced.to_xml(options: XML::SaveOptions::AS_XML)
+      ref_copy_xml = serialize_with_scope(referenced)
       ref_doc = XML.parse(ref_copy_xml)
 
       # Remove signature if present (enveloped-signature transform)

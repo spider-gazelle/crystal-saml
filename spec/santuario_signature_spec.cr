@@ -146,3 +146,61 @@ describe "allowed clock drift" do
     with_option.allowed_clock_drift.should eq 3.seconds
   end
 end
+
+describe "signer/verifier symmetry" do
+  # Shaped like a real SAML Response (and auth.cr's spec fixture): the saml
+  # prefix is declared on the root but first UTILIZED on a child, so
+  # exclusive c14n WITHOUT the inclusive list emits the declaration on the
+  # child while c14n WITH it emits it on the root. sign_document advertises
+  # INC_PREFIX_LIST in its transform, so its digest must be computed the
+  # same way or no honest verifier can accept it.
+  it "round-trips sign_document through validate_signature on a pretty multi-namespace document" do
+    key = OpenSSL::PKey::RSA.new(2048)
+    cert = OpenSSL::X509::Certificate.new
+    cert.public_key = key.public_key
+
+    doc = <<-XML
+    <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_rt1" Version="2.0">
+      <saml:Issuer>https://idp.example.test/metadata</saml:Issuer>
+      <samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>
+      <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_rta1" Version="2.0">
+        <saml:Issuer>https://idp.example.test/metadata</saml:Issuer>
+        <saml:Subject><saml:NameID>someone@example.test</saml:NameID></saml:Subject>
+      </saml:Assertion>
+    </samlp:Response>
+    XML
+
+    signed = SAML::XMLSecurity.sign_document(doc, key, cert, "_rt1",
+      SAML::XMLSecurity::RSA_SHA256, SAML::XMLSecurity::SHA256)
+    SAML::XMLSecurity.validate_signature(signed, cert).should be_true
+  end
+end
+
+describe "assertion-signed documents" do
+  # Shibboleth can sign the Assertion rather than the Response. When the
+  # assertion's namespace is declared on the Response root, serializing the
+  # referenced subtree must carry the inherited declaration or the digest
+  # can never match the signer's canonical bytes.
+  it "verifies a signature over an Assertion whose namespace is inherited from the Response root" do
+    key, cert = test_key_and_cert
+    assertion_id = "_ia1"
+
+    assertion_body = %(<saml:Issuer>https://idp.example.org/idp/shibboleth</saml:Issuer><saml:Subject><saml:NameID>someone</saml:NameID></saml:Subject>)
+    assertion_open = %(<saml:Assertion ID="#{assertion_id}" Version="2.0">)
+
+    # canonical form of the referenced assertion per exclusive C14N: the
+    # inherited saml declaration is emitted on the subtree root (visibly
+    # utilized); samlp (also inherited, unutilized) is not. Hand-derived,
+    # not computed through the code under test.
+    canonical_assertion = %(<saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="#{assertion_id}" Version="2.0">#{assertion_body}</saml:Assertion>)
+    digest = Base64.strict_encode(OpenSSL::Digest.new("SHA256").update(canonical_assertion).final)
+
+    si = signed_info_xml(assertion_id, digest)
+    si_canonical = expected_canonical(si)
+    sig = Base64.strict_encode(key.sign(OpenSSL::Digest.new("SHA256"), si_canonical.to_slice))
+
+    doc = %(<samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_resp1" Version="2.0"><saml:Issuer>https://idp.example.org/idp/shibboleth</saml:Issuer>#{assertion_open}#{signature_block(si, sig)}#{assertion_body}</saml:Assertion></samlp:Response>)
+
+    SAML::XMLSecurity.validate_signature(doc, cert).should be_true
+  end
+end

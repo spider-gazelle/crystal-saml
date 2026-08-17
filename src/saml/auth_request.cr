@@ -34,7 +34,10 @@ module SAML
       relay_state = params["RelayState"]?
 
       request_doc = create_authentication_xml_doc(settings)
-      request = request_doc.to_xml
+      # AS_XML: the default to_xml re-indents element-only subtrees — for a
+      # POST-binding signed request that rewrites the embedded Signature's
+      # bytes after the digest was computed, invalidating it
+      request = request_doc.to_xml(options: XML::SaveOptions::AS_XML)
 
       request = deflate(request) if settings.compress_request
       base64_request = encode(request)

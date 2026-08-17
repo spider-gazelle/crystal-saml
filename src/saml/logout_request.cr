@@ -34,7 +34,9 @@ module SAML
       relay_state = params["RelayState"]?
 
       request_doc = create_logout_request_xml_doc(settings)
-      request = request_doc.to_xml
+      # AS_XML: see AuthRequest#create_params — FORMAT would corrupt an
+      # embedded Signature
+      request = request_doc.to_xml(options: XML::SaveOptions::AS_XML)
 
       request = deflate(request) if settings.compress_request
       base64_request = encode(request)
